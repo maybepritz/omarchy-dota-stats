@@ -1,83 +1,106 @@
-# Dota 2 Stats для Omarchy
+# Dota 2 Stats for Omarchy
 
-Виджет панели для Omarchy Shell: статистика Dota 2 по нескольким аккаунтам из
-OpenDota. Ключ API не нужен. Профиль Dota 2 должен быть публичным
-(Game Details в настройках Dota 2).
+A bar widget for the [Omarchy](https://omarchy.org) shell that shows Dota 2 stats for one or more accounts, pulled from [OpenDota](https://www.opendota.com). No API key needed.
 
-## Аккаунты
+- **Bar:** win rate and W/L, rank, or the last game for the selected account.
+- **Popup:** profile header with avatar and rank, overview KPIs, rank graph, top heroes with portraits, recent matches, and a settings tab.
+- **Multiple accounts:** add or remove accounts from the popup; switch between them with a click, or see combined totals.
+- **Notifications:** an Omarchy desktop notification after each new game.
 
-Аккаунты добавляются и удаляются прямо в popup:
+Русская версия: [README.ru.md](README.ru.md).
 
-- **«+ Аккаунт»** открывает форму: Steam ID и необязательное название.
-  Перед сохранением ID проверяется в OpenDota. Если профиля нет, форма покажет ошибку.
-- **«Удалить»** убирает выбранный аккаунт из списка.
+## Requirements
 
-Список хранится в `~/.config/omarchy/dota-stats/accounts.json`:
+- Omarchy with shell plugin support (Omarchy 4 "Quattro" or newer).
+- `python3` (standard library only, nothing to install).
+- Network access to `api.opendota.com`.
+- Each Dota 2 profile must be public: in Dota 2, open **Settings → Game Details** and make sure matches are visible.
+
+## Install
+
+```sh
+omarchy plugin add https://github.com/maybepritz/omarchy-dota-stats.git --enable
+```
+
+The widget is placed in the left section of the bar. Open it with a left click.
+
+## Adding accounts
+
+Open the popup, go to **Settings**, enter a Steam ID and an optional label, and press **Add**. The account is checked on OpenDota before it is saved.
+
+- The ID can be the 32-bit account ID or the 64-bit SteamID; it is stored as the 32-bit ID.
+- Remove an account with **Delete** in the same tab.
+
+The list is stored in `~/.config/omarchy/dota-stats/accounts.json`:
 
 ```json
 {
   "accounts": [
-    {"id": 88367253, "label": "основной"},
-    {"id": 76561198048632981, "label": "второй"}
+    {"id": 123456789, "label": "main"},
+    {"id": 76561198000000000, "label": "second"}
   ]
 }
 ```
 
-- `id` принимает и 32-битный account_id, и 64-битный SteamID. Сохраняется всегда 32-битный.
-- `label` — название, если пустое, берётся ник из Dota 2 / Steam.
-- Файл можно править и руками, изменения подхватятся при следующем обновлении.
-
-Добавить или удалить из терминала можно тем же помощником:
+You can also add or remove accounts from a terminal:
 
 ```sh
-python3 dota_fetch.py --add 88367253 --label основной
-python3 dota_fetch.py --remove 88367253
+python3 dota_fetch.py --add 123456789 --label main
+python3 dota_fetch.py --remove 123456789
 ```
 
-## Что показывает
+## Settings
 
-- **Панель:** выбранный аккаунт. В настройках можно показывать винрейт и W/L, ранг или последнюю игру (герой и K/D/A).
-- **Шапка popup:** аватар, ник, ранг и переключатель обновления.
-- **Вкладка «Обзор»:** винрейт, W/L, KDA и GPM за период, график рангов по ranked-играм и топ-5 героев с портретами.
-- **Вкладка «Матчи»:** последние игры с иконкой героя. Клик открывает матч на opendota.com.
-- **Вкладка «Герои»:** топ-10 героев с портретом, винрейтом и KDA.
-- **Вкладка «Настройки»:** аккаунты (добавление и удаление), интервал обновления, число матчей, что показывать на панели и уведомления.
-- **Сумма по всем аккаунтам** показывается на вкладке «Обзор», если аккаунтов больше одного.
+All settings are in the **Settings** tab and are saved to `~/.config/omarchy/dota-stats/settings.json`:
 
-## Уведомления
+| Setting | Options | Default |
+| --- | --- | --- |
+| Refresh interval | 5, 10, 30, 60 min | 10 min |
+| Matches in summary | 10, 20, 50 | 20 |
+| Bar shows | win rate, rank, last game | win rate |
+| Game notifications | on / off | on |
 
-Если включены, после каждой новой игры приходит уведомление: результат, герой, K/D/A и длительность.
-При первом запуске помощник только запоминает последнюю игру, поэтому старые матчи не приходят все сразу.
-Уведомления отправляются через `omarchy-notification-send`, аватар аккаунта показывается как картинка.
+The popup also has a period filter (7 days, 30 days, all time) and a lobby filter (ranked, all public games).
 
-## Управление
+## Controls
 
-- Левый клик: открыть popup.
-- Правый клик: обновить данные.
-- Средний клик: переключить аккаунт на панели.
+- **Left click** on the bar: open the popup.
+- **Right click** on the bar: refresh now.
+- **Middle click** on the bar: switch to the next account.
 - IPC: `omarchy-shell dota-stats refresh`, `omarchy-shell dota-stats next`, `omarchy-shell dota-stats status`.
 
-## Как устроено
+## How it works
 
-- `dota_fetch.py` делает запросы к `api.opendota.com` и печатает JSON. Его можно запустить отдельно:
+- `dota_fetch.py` requests data from `api.opendota.com` and prints one JSON object. The shell service runs it on start, on the timer, and when you change a filter.
+- Images (hero portraits, hero icons, avatars) and the hero list are cached in `~/.cache/omarchy/dota-stats/`. Profile and rank history are cached for an hour, the hero list for a week. Results that depend on the period or the latest games are always fetched fresh.
+- If a refresh fails, the widget keeps showing the last good data together with the error.
+- New-game notifications use `omarchy-notification-send`. The first run only records the latest game, so old matches are not announced.
 
-  ```sh
-  python3 dota_fetch.py --days 7 --lobby ranked
-  python3 dota_fetch.py --set refreshMinutes 30
-  ```
+Run the helper on its own to check it:
 
-- `Service.qml` запускает помощника при старте и по таймеру (интервал из настроек), а также при смене периода или режима.
-- Кэш в `~/.cache/omarchy/dota-stats/`: портреты и иконки героев, аватары, список героев на неделю, профиль и рейтинг на час.
-  Данные, которые зависят от периода и последних игр, в кэш не попадают.
-- Если обновление не удалось, панель показывает последние полученные данные и текст ошибки.
+```sh
+python3 dota_fetch.py --days 7 --lobby ranked
+python3 dota_fetch.py --set refreshMinutes 30
+```
 
-## Ограничения
+## Data and privacy
 
-- OpenDota не всегда отдаёт GPM для списка матчей. Там, где значения нет, показывается «—».
-- График показывает ранг (rank_tier) по ranked-играм. Точный MMR OpenDota отдаёт не для всех аккаунтов.
-- Лимит OpenDota без ключа: около 60 запросов в минуту и 2000 в сутки. За обновление каждый аккаунт делает 3 запроса, остальное кэшируется. Интервал 5 минут при нескольких аккаунтах может упереться в суточный лимит.
+The plugin only sends requests to `api.opendota.com` for the accounts you add. It stores the account list, settings, and cached API responses and images locally. Nothing is sent anywhere else. Data comes from OpenDota; Dota 2 and hero images belong to Valve.
 
-## Удаление
+## Limitations
 
-`omarchy plugin disable maybepritz.dota-stats`, затем удалить каталог плагина
-и при желании `~/.config/omarchy/dota-stats/` и `~/.cache/omarchy/dota-stats/`.
+- OpenDota does not always include GPM for the match list; missing values are shown as `—`.
+- The rank graph shows the rank tier (`rank_tier`) from ranked games, not an exact MMR. OpenDota does not provide exact MMR for every account.
+- The free OpenDota limit is about 60 requests per minute and 2000 per day. Each account makes about three uncached requests per refresh. A 5-minute interval with several accounts can reach the daily limit.
+
+## Remove
+
+```sh
+omarchy plugin remove maybepritz.dota-stats
+```
+
+To also delete your data, remove `~/.config/omarchy/dota-stats/` and `~/.cache/omarchy/dota-stats/`.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
