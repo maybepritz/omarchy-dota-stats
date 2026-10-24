@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "maybepritz.dota-stats",
+  "name": "Dota 2 Stats",
+  "version": "0.1.0",
+  "author": "maybepritz",
+  "license": "MIT",
+  "description": "Dota 2 stats for several accounts from OpenDota: win rate, rank, top heroes and recent matches.",
+  "kinds": ["service", "bar-widget"],
+  "entryPoints": {"service": "Service.qml", "barWidget": "Panel.qml"},
+  "barWidget": {
+    "displayName": "Dota 2",
+    "category": "Games",
+    "allowMultiple": false,
+    "defaultSection": "left"
+  }
+}
